@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Clientes con Firebase y Auth</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --success: #16a34a;
+            --error: #dc2626;
+            --warning: #d97706;
+            --secondary: #475569;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            position: relative;
+            display: none; /* Se muestra solo al estar logueado */
+        }
+
+        /* --- PANTALLA DE LOGIN --- */
+        .login-card {
+            background: var(--surface);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            display: block; /* Se muestra por defecto */
+        }
+
+        .login-card h1 {
+            color: #0f172a;
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .login-card p {
+            color: #64748b;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+
+        .btn-google {
+            background-color: #ffffff;
+            color: #1f2937;
+            border: 1px solid #d1d5db;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 2px 4px 0 rgba(0,0,0,0.06);
+            font-size: 1rem;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-google:hover {
+            background-color: #f9fafb;
+            border-color: #c1c5cb;
+        }
+
+        .btn-google svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* --- PANEL DE CONTROL (DASHBOARD) --- */
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-right: 320px;
+        }
+
+        @media (max-width: 768px) {
+            header { padding-right: 0; margin-top: 90px; }
+        }
+
+        h1 { margin-bottom: 5px; color: #0f172a; font-size: 1.8rem; }
+        .user-info { color: #64748b; font-size: 0.95rem; margin-top: 5px; }
+
+        /* Botones de la barra superior */
+        .top-buttons {
+            position: absolute;
+            top: 10px;
+            right: 0;
+            display: flex;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .top-buttons { width: 100%; justify-content: center; top: 0; }
+        }
+
+        .btn-history-trigger {
+            background-color: var(--secondary);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 30px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-history-trigger:hover { background-color: #334155; }
+
+        .btn-logout {
+            background-color: #f1f5f9;
+            color: #64748b;
+            padding: 10px 16px;
+            border-radius: 30px;
+            font-weight: bold;
+            border: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .btn-logout:hover { background-color: #e2e8f0; color: #334155; }
+
+        .counter-badge {
+            background-color: var(--error);
+            color: white;
+            border-radius: 50%;
+            padding: 2px 7px;
+            font-size: 0.8rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            width: 100%;
+        }
+
+        @media (min-width: 768px) { .grid { grid-template-columns: 1fr 2fr; } }
+
+        .card {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            height: fit-content;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #0f172a;
+            border-bottom: 2px solid var(--background);
+            padding-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .form-group { margin-bottom: 15px; }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+        }
+
+        input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+
+        .search-input {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="gray" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: 10px center;
+            padding-left: 35px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .btn-submit { background-color: var(--primary); color: white; width: 100%; }
+        .btn-submit:hover { background-color: var(--primary-hover); }
+
+        .btn-edit { background-color: var(--warning); color: white; padding: 4px 8px; font-size: 0.85rem; margin-right: 5px; }
+        .btn-edit:hover { background-color: #b45309; }
+
+        .btn-delete { background-color: var(--error); color: white; padding: 4px 8px; font-size: 0.85rem; }
+        .btn-delete:hover { background-color: #b91c1c; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+        th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+        th { background-color: #f1f5f9; color: #475569; font-weight: 600; }
+
+        /* VENTANA MODAL */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000; opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .modal-content {
+            background-color: var(--surface); padding: 25px; border-radius: 14px;
+            max-width: 650px; width: 90%; max-height: 80vh;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+            position: relative; display: flex; flex-direction: column;
+            transform: translateY(-20px); transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--background); padding-bottom: 12px; margin-bottom: 15px; }
+        .modal-header h2 { margin: 0; border: none; padding: 0; }
+        .btn-close-modal { background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; padding: 5px; line-height: 1; }
+
+        .history-list { overflow-y: auto; flex-grow: 1; border: 1px solid var(--border); border-radius: 6px; background-color: #f8fafc; padding: 10px; }
+        .history-item { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.88rem; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .history-item:last-child { border-bottom: none; }
+
+        .badge-deleted { background-color: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .badge-saved { background-color: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="login-screen" class="login-card">
+    <h1>Acceso al Sistema</h1>
+    <p>Inicia sesión con tu cuenta de Google para gestionar tus clientes de forma segura.</p>
+    <button class="btn-google" id="btn-login-google">
+        <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+        </svg>
+        <span>Continuar con Google</span>
+    </button>
+</div>
+
+<div id="main-app" class="container">
+    <header>
+        <h1>Directorio de Clientes</h1>
+        <div class="user-info" id="user-display">Cargando usuario...</div>
+    </header>
+
+    <div class="top-buttons">
+        <button class="btn-history-trigger" id="btn-historial">
+            <span>Historial</span>
+            <span id="counter" class="counter-badge">0</span>
+        </button>
+        <button class="btn-logout" id="btn-logout">Cerrar Sesión</button>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2 id="form-title">Nuevo Cliente</h2>
+            <form id="client-form">
+                <input type="hidden" id="edit-id">
+                <div class="form-group">
+                    <label for="nombre">Nombre Completo:</label>
+                    <input type="text" id="nombre" placeholder="Ej. Juan Pérez" required>
+                </div>
+                <div class="form-group">
+                    <label for="telefono">Teléfono / Celular:</label>
+                    <input type="tel" id="telefono" placeholder="Ej. +57 300 123 4567" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Correo Electrónico:</label>
+                    <input type="email" id="email" placeholder="Ej. juan@correo.com" required>
+                </div>
+                <button type="submit" id="btn-submit" class="btn-submit">Guardar Cliente</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Listado General de Clientes</h2>
+            <input type="text" id="buscador" class="search-input" placeholder="Buscar por nombre, teléfono o email...">
+            
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Teléfono</th>
+                            <th>Email</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="client-table-body">
+                        <tr><td colspan="4" style="text-align:center; color:#94a3b8;">Sincronizando datos...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="historial-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Historial de Cambios y Respaldos</h2>
+            <button class="btn-close-modal" id="btn-close-modal">&times;</button>
+        </div>
+        <div id="history-container" class="history-list">
+            </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+        getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { 
+        getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    // Tu configuración de Firebase
+    const firebaseConfig = {
+        apiKey: "AIzaSyBNGeKX5uX6TW83zQ3w_3fiojs5_WbqehA", 
+        authDomain: "usuario-eeabd.firebaseapp.com",
+        projectId: "usuario-eeabd",
+        storageBucket: "usuario-eeabd.firebasestorage.app",
+        messagingSenderId: "284534350790",
+        appId: "1:284534350790:web:650d663f36e0cfa17dc8c7",
+        measurementId: "G-MP3BEL24T8"
+    };
+
+    // Inicializar servicios
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    const clientesRef = collection(db, "clientes");
+    const historialRef = collection(db, "historial");
+
+    let listaClientes = [];
+    let unsubClientes = null;
+    let unsubHistorial = null;
+
+    // Elementos de las pantallas
+    const loginScreen = document.getElementById('login-screen');
+    const mainApp = document.getElementById('main-app');
+    const userDisplay = document.getElementById('user-display');
+
+    // Elementos DOM del Dashboard
+    const clientForm = document.getElementById('client-form');
+    const editIdInput = document.getElementById('edit-id');
+    const nombreInput = document.getElementById('nombre');
+    const telefonoInput = document.getElementById('telefono');
+    const emailInput = document.getElementById('email');
+    const btnSubmit = document.getElementById('btn-submit');
+    const formTitle = document.getElementById('form-title');
+    const tableBody = document.getElementById('client-table-body');
+    const buscador = document.getElementById('buscador');
+    const historyContainer = document.getElementById('history-container');
+    const counterBadge = document.getElementById('counter');
+    const modal = document.getElementById('historial-modal');
+
+    // --- MANEJO DE AUTENTICACIÓN ---
+
+    // Evento para Iniciar Sesión
+    document.getElementById('btn-login-google').addEventListener('click', async () => {
+        try {
+            await signInWithPopup(auth, provider);
+        } catch (error) {
+            console.error("Error al autenticar con Google:", error);
+            alert("No se pudo iniciar sesión. Verifica la consola.");
+        }
+    });
+
+    // Evento para Cerrar Sesión
+    document.getElementById('btn-logout').addEventListener('click', () => {
+        signOut(auth);
+    });
+
+    // Observador del Estado de la Sesión
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            // Usuario conectado: Mostrar Dashboard y ocultar Login
+            loginScreen.style.display = 'none';
+            mainApp.style.display = 'block';
+            document.body.style.justifyContent = 'flex-start';
+            userDisplay.textContent = `Conectado como: ${user.displayName} (${user.email})`;
+            
+            // Activar escuchas en tiempo real de la base de datos
+            activarSincronizacionDB();
+        } else {
+            // Usuario desconectado: Mostrar Login y ocultar Dashboard
+            loginScreen.style.display = 'block';
+            mainApp.style.display = 'none';
+            document.body.style.justifyContent = 'center';
+            
+            // Desactivar escuchas activas para ahorrar recursos y evitar errores de permisos
+            desactivarSincronizacionDB();
+        }
+    });
+
+    // --- MODALES ---
+    document.getElementById('btn-historial').addEventListener('click', () => modal.classList.add('active'));
+    document.getElementById('btn-close-modal').addEventListener('click', () => modal.classList.remove('active'));
+    modal.addEventListener('click', (e) => { if(e.target === modal) modal.classList.remove('active'); });
+
+
+    // --- SINCRONIZACIÓN DE BASE DE DATOS ---
+
+    function activarSincronizacionDB() {
+        // Escuchar Clientes
+        unsubClientes = onSnapshot(clientesRef, (snapshot) => {
+            listaClientes = [];
+            snapshot.forEach(doc => {
+                listaClientes.push({ id: doc.id, ...doc.data() });
+            });
+            renderizarTabla(buscador.value.trim());
+        });
+
+        // Escuchar Historial ordenado
+        const qHistorial = query(historialRef, orderBy("timestamp", "desc"));
+        unsubHistorial = onSnapshot(qHistorial, (snapshot) => {
+            historyContainer.innerHTML = '';
+            counterBadge.textContent = snapshot.size;
+
+            if (snapshot.size === 0) {
+                historyContainer.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:20px;">El historial está vacío.</div>`;
+                return;
+            }
+
+            snapshot.forEach(doc => {
+                const h = doc.data();
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                let badgeClass = h.accion === 'ELIMINADO' ? 'badge-deleted' : 'badge-saved';
+                
+                div.innerHTML = `
+                    <div>
+                        <strong>[${h.fechaHora}]</strong> - ${h.nombre} (${h.telefono} | ${h.email})
+                    </div>
+                    <span class="${badgeClass}">${h.accion}</span>
+                `;
+                historyContainer.appendChild(div);
+            });
+        });
+    }
+
+    function desactivarSincronizacionDB() {
+        if (unsubClientes) unsubClientes();
+        if (unsubHistorial) unsubHistorial();
+    }
+
+    // --- OPERACIONES CRUD ---
+
+    clientForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = editIdInput.value;
+        const nombre = nombreInput.value.trim();
+        const telefono = telefonoInput.value.trim();
+        const email = emailInput.value.trim();
+
+        try {
+            if (id) {
+                const docRef = doc(db, "clientes", id);
+                await updateDoc(docRef, { nombre, telefono, email });
+                await registrarHistorial(nombre, telefono, email, 'MODIFICADO');
+
+                formTitle.textContent = "Nuevo Cliente";
+                btnSubmit.textContent = "Guardar Cliente";
+                btnSubmit.style.backgroundColor = "var(--primary)";
+                editIdInput.value = "";
+            } else {
+                await addDoc(clientesRef, { nombre, telefono, email });
+                await registrarHistorial(nombre, telefono, email, 'REGISTRADO');
+            }
+            clientForm.reset();
+        } catch (error) {
+            console.error("Error al guardar:", error);
+        }
+    });
+
+    window.eliminarCliente = async function(id) {
+        const cliente = listaClientes.find(c => c.id === id);
+        if (cliente) {
+            try {
+                await registrarHistorial(cliente.nombre, cliente.telefono, cliente.email, 'ELIMINADO');
+                await deleteDoc(doc(db, "clientes", id));
+
+                if(editIdInput.value == id) {
+                    clientForm.reset();
+                    formTitle.textContent = "Nuevo Cliente";
+                    btnSubmit.textContent = "Guardar Cliente";
+                    btnSubmit.style.backgroundColor = "var(--primary)";
+                    editIdInput.value = "";
+                }
+            } catch (error) {
+                console.error("Error al eliminar:", error);
+            }
+        }
+    }
+
+    window.prepararEdicion = function(id) {
+        const cliente = listaClientes.find(c => c.id === id);
+        if (cliente) {
+            editIdInput.value = cliente.id;
+            nombreInput.value = cliente.nombre;
+            telefonoInput.value = cliente.telefono;
+            emailInput.value = cliente.email;
+
+            formTitle.textContent = "Modificar Cliente";
+            btnSubmit.textContent = "Actualizar Datos";
+            btnSubmit.style.backgroundColor = "var(--warning)";
+            nombreInput.focus();
+        }
+    }
+
+    async function registrarHistorial(nombre, telefono, email, accion) {
+        const fechaHora = new Date().toLocaleString();
+        await addDoc(historialRef, {
+            fechaHora, nombre, telefono, email, accion,
+            timestamp: Date.now()
+        });
+    }
+
+    buscador.addEventListener('input', () => {
+        renderizarTabla(buscador.value.trim());
+    });
+
+    function renderizarTabla(filtro = '') {
+        tableBody.innerHTML = '';
+        const busqueda = filtro.toLowerCase();
+
+        const clientesFiltrados = listaClientes.filter(c => 
+            c.nombre.toLowerCase().includes(busqueda) || 
+            c.telefono.toLowerCase().includes(busqueda) || 
+            c.email.toLowerCase().includes(busqueda)
+        );
+
+        if (clientesFiltrados.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">No se encontraron clientes</td></tr>`;
+            return;
+        }
+
+        clientesFiltrados.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${c.nombre}</strong></td>
+                <td>${c.telefono}</td>
+                <td>${c.email}</td>
+                <td>
+                    <button class="btn-edit" onclick="prepararEdicion('${c.id}')">Editar</button>
+                    <button class="btn-delete" onclick="eliminarCliente('${c.id}')">Eliminar</button>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    }
+</script>
+</body>
+</html>
